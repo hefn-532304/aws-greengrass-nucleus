@@ -1,13 +1,13 @@
 ---
 RecipeFormatVersion: '2020-01-25'
-ComponentName: DependencyOnDependency
-ComponentDescription: A service with dependency
+ComponentName: SoftDependencyOnBreak
+ComponentDescription: A service with soft dependency on a broken service
 ComponentPublisher: Me
 ComponentVersion: '1.0.0'
 ComponentDependencies:
-  DependencyOnBreak:
+  BreakingService2:
     VersionRequirement: '>=0.0.0'
-    DependencyType: HARD
+    DependencyType: SOFT
 Manifests:
   - Platform:
       os: all

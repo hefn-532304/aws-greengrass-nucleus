@@ -1263,8 +1263,9 @@ class DeploymentTaskIntegrationTest extends BaseITCase {
                 .filter(greengrassService -> greengrassService instanceof GenericExternalService)
                 .map(GreengrassService::getName).collect(Collectors.toList());
         // should contain main, Nucleus, BreakingService2, DependencyOnBreak
-        assertEquals(5, services.size(), "Existing services: " + services);
-        assertThat(services, containsInAnyOrder("main", DEFAULT_NUCLEUS_COMPONENT_NAME, "BreakingService2", "DependencyOnBreak", "DependencyOnDependency"));
+        assertEquals(6, services.size(), "Existing services: " + services);
+        assertThat(services, containsInAnyOrder("main", DEFAULT_NUCLEUS_COMPONENT_NAME,
+                "BreakingService2", "DependencyOnBreak", "DependencyOnDependency", "SoftDependencyOnBreak"));
         assertEquals("1.0.0", kernel.findServiceTopic("DependencyOnBreak").find("version").getOnce());
         assertEquals(DeploymentResult.DeploymentStatus.FAILED_ROLLBACK_NOT_REQUESTED, result.getDeploymentStatus());
         preloadLocalStoreContent();
@@ -1277,7 +1278,7 @@ class DeploymentTaskIntegrationTest extends BaseITCase {
         services = kernel.orderedDependencies().stream()
                 .filter(greengrassService -> greengrassService instanceof GenericExternalService)
                 .map(GreengrassService::getName).collect(Collectors.toList());
-        assertEquals(5, services.size(), "Existing services: " + services);
+        assertEquals(6, services.size(), "Existing services: " + services);
         assertEquals("1.0.0", kernel.findServiceTopic("DependencyOnBreak").find("version").getOnce());
         assertEquals(DeploymentResult.DeploymentStatus.FAILED_ROLLBACK_COMPLETE, result.getDeploymentStatus());
     }

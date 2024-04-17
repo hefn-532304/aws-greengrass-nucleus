@@ -15,6 +15,7 @@ import com.aws.greengrass.lifecyclemanager.Kernel;
 import com.aws.greengrass.lifecyclemanager.exceptions.ServiceLoadException;
 
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -177,13 +178,13 @@ public class DefaultActivator extends DeploymentActivator {
      */
     private Set<GreengrassService> findServiceDependers(final Set<GreengrassService> rollbackServices,
                                                         final Set<String> brokenServiceNames) {
-        Set<GreengrassService> dependerServices = rollbackServices.stream()
+        LinkedHashSet<GreengrassService> dependerServices = rollbackServices.stream()
                 .filter(service -> brokenServiceNames.contains(service.getName()))
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
         // Breadth-first search to find all dependent services, staring from broken services
         for (GreengrassService currentService : dependerServices) { // broken services (add while traverse)
-            for (GreengrassService depender : currentService.getDependers(false)) { // get dependers
+            for (GreengrassService depender : currentService.getDependers(false)) { // get all dependers
                 // Ensure dependers are within the rollback services and haven't been processed
                 if (rollbackServices.contains(depender)) {
                     dependerServices.add(depender);

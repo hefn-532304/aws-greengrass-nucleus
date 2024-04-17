@@ -7,7 +7,7 @@ ComponentVersion: '1.0.1'
 ComponentDependencies:
   DependencyOnBreak:
     VersionRequirement: '>=0.0.0'
-    DependencyType: SOFT
+    DependencyType: HARD
 Manifests:
   - Platform:
       os: all

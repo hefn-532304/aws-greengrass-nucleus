@@ -15,6 +15,11 @@
       "Name": "DependencyOnDependency",
       "ResolvedVersion": "1.0.1",
       "RootComponent": true
+    },
+    {
+      "Name": "SoftDependencyOnBreak",
+      "ResolvedVersion": "1.0.1",
+      "RootComponent": true
     }
   ],
   "Timestamp": 1592594829000,

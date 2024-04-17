@@ -527,12 +527,18 @@ public class GreengrassService implements InjectionActions {
         };
     }
 
-    private List<GreengrassService> getHardDependers() {
+    /**
+     * Get all dependers.
+     * @param checkHardDependencies filter only hard dependers
+     * @return a List of all depender or hard depender services of current service
+     */
+    public List<GreengrassService> getDependers(boolean checkHardDependencies) {
         List<GreengrassService> dependers = new ArrayList<>();
         Kernel kernel = context.get(Kernel.class);
         for (GreengrassService greengrassService : kernel.orderedDependencies()) {
             for (Map.Entry<GreengrassService, DependencyInfo> entry : greengrassService.dependencies.entrySet()) {
-                if (entry.getKey().equals(this) && DependencyType.HARD.equals(entry.getValue().dependencyType)) {
+                if (entry.getKey().equals(this) && (!checkHardDependencies
+                        || DependencyType.HARD.equals(entry.getValue().dependencyType))) {
                     dependers.add(greengrassService);
                 }
             }
@@ -542,7 +548,7 @@ public class GreengrassService implements InjectionActions {
 
     private void waitForDependersToExit() throws InterruptedException {
 
-        List<GreengrassService> dependers = getHardDependers();
+        List<GreengrassService> dependers = getDependers(true);
         List<GlobalStateChangeListener> watchers = new ArrayList<>();
 
         // subscribing to depender state changes

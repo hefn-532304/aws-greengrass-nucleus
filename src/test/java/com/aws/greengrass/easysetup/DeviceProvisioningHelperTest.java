@@ -7,6 +7,7 @@ package com.aws.greengrass.easysetup;
 
 import com.aws.greengrass.lifecyclemanager.Kernel;
 import com.aws.greengrass.testcommons.testutilities.GGExtension;
+import com.aws.greengrass.util.EncryptionUtils;
 import com.aws.greengrass.util.IamSdkClientFactory;
 import com.aws.greengrass.util.IotSdkClientFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -59,9 +60,15 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityResponse;
 
+import java.io.File;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.aws.greengrass.componentmanager.KernelConfigResolver.CONFIGURATION_CONFIG_KEY;
 import static com.aws.greengrass.deployment.DeviceConfiguration.DEFAULT_NUCLEUS_COMPONENT_NAME;
@@ -416,6 +423,26 @@ class DeviceProvisioningHelperTest {
         assertEquals("roleAliasName", kernel.getConfig()
                 .lookup(SERVICES_NAMESPACE_TOPIC, DEFAULT_NUCLEUS_COMPONENT_NAME, CONFIGURATION_CONFIG_KEY,
                         IOT_ROLE_ALIAS_TOPIC).getOnce());
+    }
+
+    @Test
+    void GIVEN_device_config_WHEN_download_both_CA3_and_CA1_THEN_CA_added_to_file()
+            throws Exception {
+        kernel = new Kernel()
+                .parseArgs("-i", getClass().getResource("blank_config.yaml").toString(), "-r", tempRootDir.toString());
+
+        deviceProvisioningHelper.updateKernelConfigWithIotConfiguration(kernel,
+                new DeviceProvisioningHelper.ThingInfo(getThingArn(), "thingname", "certarn", "certid", "certpem",
+                        KeyPair.builder().privateKey("privateKey").publicKey("publicKey").build(), "xxxxxx-ats.iot.us-east-1.amazonaws.com",
+                        "xxxxxx.credentials.iot.us-east-1.amazonaws.com"), TEST_REGION, "roleAliasName", null);
+        Path certPath = kernel.getNucleusPaths().rootPath();
+        Path caFilePath = certPath.resolve("rootCA.pem");
+        File caFile = caFilePath.toFile();
+
+        String certificates = new String(Files.readAllBytes(caFile.toPath()), StandardCharsets.UTF_8);
+        List<String> certificateArray = Arrays.stream(certificates.split(EncryptionUtils.CERTIFICATE_PEM_HEADER)).filter(s -> !s.isEmpty()).collect(Collectors.toList());
+
+        assertEquals(2, certificateArray.size());
     }
 
     @Test

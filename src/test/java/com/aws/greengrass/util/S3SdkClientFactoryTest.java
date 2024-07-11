@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import software.amazon.awssdk.core.SdkSystemSetting;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
@@ -62,6 +63,7 @@ public class S3SdkClientFactoryTest {
             cachedClient.close();
         }
         System.clearProperty(S3_ENDPOINT_PROP_NAME);
+        System.clearProperty(SdkSystemSetting.AWS_USE_FIPS_ENDPOINT.property());
     }
 
     @Test
@@ -190,6 +192,27 @@ public class S3SdkClientFactoryTest {
         try (S3Client client = factory.getS3Client()) {
             assertEquals(client, cachedClient);
             assertEquals("regional", System.getProperty(S3_ENDPOINT_PROP_NAME));
+        }
+    }
+
+    @Test
+    void GIVEN_fipsMode_changed_WHEN_get_client_THEN_client_refresh() throws DeviceConfigurationException {
+        S3SdkClientFactory factory = new S3SdkClientFactory(deviceConfig, credentialProvider);
+        factory.handleRegionUpdate();
+        System.setProperty(SdkSystemSetting.AWS_USE_FIPS_ENDPOINT.property(), "false");
+        String currFipsMode = System.getProperty(SdkSystemSetting.AWS_USE_FIPS_ENDPOINT.property());
+        try (S3Client client = factory.getS3Client()) {
+            assertEquals(currFipsMode, "false");
+            cachedClient = client;
+            assertEquals("false", System.getProperty(SdkSystemSetting.AWS_USE_FIPS_ENDPOINT.property()));
+        }
+
+        Topic fipsMode = Topic.of(context, DeviceConfiguration.DEVICE_PARAM_FIPS_MODE, "true");
+        System.setProperty(SdkSystemSetting.AWS_USE_FIPS_ENDPOINT.property(), "true");
+        when(deviceConfig.getFipsMode()).thenReturn(fipsMode);
+        try (S3Client client = factory.getS3Client()) {
+            assertEquals("true", System.getProperty(SdkSystemSetting.AWS_USE_FIPS_ENDPOINT.property()));
+            assertThat(client, is(not(cachedClient)));
         }
     }
 }

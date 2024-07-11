@@ -32,6 +32,7 @@ public class S3SdkClientFactory {
     private static final String S3_REGIONAL_ENDPOINT_VALUE = "regional";
     private DeviceConfigurationException configValidationError;
     private Region region;
+    private boolean useFips;
 
     /**
      * Constructor.
@@ -44,6 +45,7 @@ public class S3SdkClientFactory {
         this.credentialsProvider = credentialsProvider;
         this.deviceConfiguration = deviceConfiguration;
         this.deviceConfiguration.onAnyChange((what, node) -> handleRegionUpdate());
+        useFips = Coerce.toBoolean(deviceConfiguration.getFipsMode());
     }
 
     protected void handleRegionUpdate() {
@@ -89,7 +91,7 @@ public class S3SdkClientFactory {
      * @return s3client
      */
     public S3Client getClientForRegion(Region r) {
-        setS3EndpointType(Coerce.toString(deviceConfiguration.gets3EndpointType()));
+        handleSystemPropertyUpdate();
         return clientCache.computeIfAbsent(r, (region) -> S3Client.builder()
                 .httpClientBuilder(ProxyUtils.getSdkHttpClientBuilder())
                 .serviceConfiguration(S3Configuration.builder().useArnRegionEnabled(true).build())
@@ -97,11 +99,31 @@ public class S3SdkClientFactory {
     }
 
     /**
-     * Set s3 endpoint type.
+     * Update system property and refresh client.
+     */
+    private void handleSystemPropertyUpdate() {
+        // handle s3 endpoint type
+        boolean refreshCache = handleS3EndpointType(Coerce.toString(deviceConfiguration.gets3EndpointType()));
+
+        // handle fips endpoint, check current useFips value is consistent with deviceConfig fipsMode value,
+        // refresh client if they are inconsistent
+        if (useFips != Coerce.toBoolean(deviceConfiguration.getFipsMode())) {
+            refreshCache = true;
+            useFips = Coerce.toBoolean(deviceConfiguration.getFipsMode());
+        }
+
+        if (refreshCache) {
+            refreshClientCache();
+        }
+    }
+
+    /**
+     * Handle s3 endpoint type.
      *
      * @param type s3EndpointType
+     * @return boolean if client needs to be refreshed
      */
-    private void setS3EndpointType(String type) {
+    private boolean handleS3EndpointType(String type) {
         //Check if system property and device config are consistent
         //If not consistent, set system property according to device config value
         String s3EndpointSystemProp = System.getProperty(S3_ENDPOINT_PROP_NAME);
@@ -109,13 +131,14 @@ public class S3SdkClientFactory {
 
         if (isGlobal && S3_REGIONAL_ENDPOINT_VALUE.equals(s3EndpointSystemProp)) {
             System.clearProperty(S3_ENDPOINT_PROP_NAME);
-            refreshClientCache();
             logger.atDebug().log("s3 endpoint set to global");
+            return true;
         } else if (!isGlobal && !S3_REGIONAL_ENDPOINT_VALUE.equals(s3EndpointSystemProp)) {
             System.setProperty(S3_ENDPOINT_PROP_NAME, S3_REGIONAL_ENDPOINT_VALUE);
-            refreshClientCache();
             logger.atDebug().log("s3 endpoint set to regional");
+            return true;
         }
+        return false;
     }
 
     /**

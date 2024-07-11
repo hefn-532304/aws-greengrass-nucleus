@@ -21,6 +21,7 @@ import java.util.concurrent.locks.Lock;
 import javax.inject.Inject;
 
 import static com.aws.greengrass.deployment.DeviceConfiguration.DEVICE_PARAM_CERTIFICATE_FILE_PATH;
+import static com.aws.greengrass.deployment.DeviceConfiguration.DEVICE_PARAM_FIPS_MODE;
 import static com.aws.greengrass.deployment.DeviceConfiguration.DEVICE_PARAM_PRIVATE_KEY_PATH;
 import static com.aws.greengrass.deployment.DeviceConfiguration.DEVICE_PARAM_ROOT_CA_PATH;
 
@@ -70,7 +71,8 @@ public class IotConnectionManager implements Closeable {
     private void reconfigureOnConfigChange() {
         deviceConfiguration.onAnyChange((what, node) -> {
             if (WhatHappened.childChanged.equals(what) && node != null && (node.childOf(DEVICE_PARAM_PRIVATE_KEY_PATH)
-                    || node.childOf(DEVICE_PARAM_CERTIFICATE_FILE_PATH) || node.childOf(DEVICE_PARAM_ROOT_CA_PATH))) {
+                    || node.childOf(DEVICE_PARAM_CERTIFICATE_FILE_PATH) || node.childOf(DEVICE_PARAM_ROOT_CA_PATH)
+                    || node.childOf(DEVICE_PARAM_FIPS_MODE))) {
                 try (LockScope ls = LockScope.lock(lock)) {
                     if (this.client != null) {
                         this.client.close();

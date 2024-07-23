@@ -23,6 +23,8 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Set;
@@ -116,4 +118,28 @@ public final class RootCAUtils {
             }
         }
     }
+
+    /**
+     * Download rootCA 3 to root path.
+     * @param rootCAPath the root path for CAs
+     * @param urls the CA url array
+     * @return if CA downloaded
+     */
+    public static boolean downloadRootCAsWithPath(String rootCAPath, String... urls) {
+        if (rootCAPath == null || rootCAPath.isEmpty()) {
+            return false;
+        }
+        Path caFilePath = Paths.get(rootCAPath);
+        if (!Files.exists(caFilePath)) {
+            return false;
+        }
+        try {
+            downloadRootCAToFile(caFilePath.toFile(), urls);
+        } catch (IOException e) {
+            logger.atError().log("Failed to download CA from path - {}", caFilePath.toAbsolutePath(), e);
+            return false;
+        }
+        return true;
+    }
+
 }

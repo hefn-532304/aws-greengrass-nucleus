@@ -18,6 +18,7 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.inject.Inject;
 
 /**
@@ -25,6 +26,7 @@ import javax.inject.Inject;
  */
 public class S3SdkClientFactory {
     static final Map<Region, S3Client> clientCache = new ConcurrentHashMap<>();
+    private final AtomicBoolean useFips;
     private final LazyCredentialProvider credentialsProvider;
     private final DeviceConfiguration deviceConfiguration;
     private static final Logger logger = LogManager.getLogger(S3SdkClientFactory.class);
@@ -32,7 +34,6 @@ public class S3SdkClientFactory {
     private static final String S3_REGIONAL_ENDPOINT_VALUE = "regional";
     private DeviceConfigurationException configValidationError;
     private Region region;
-    private boolean useFips;
 
     /**
      * Constructor.
@@ -45,7 +46,7 @@ public class S3SdkClientFactory {
         this.credentialsProvider = credentialsProvider;
         this.deviceConfiguration = deviceConfiguration;
         this.deviceConfiguration.onAnyChange((what, node) -> handleRegionUpdate());
-        useFips = Coerce.toBoolean(deviceConfiguration.getFipsMode());
+        useFips = new AtomicBoolean(Coerce.toBoolean(deviceConfiguration.getFipsMode()));
     }
 
     protected void handleRegionUpdate() {
@@ -107,9 +108,8 @@ public class S3SdkClientFactory {
 
         // handle fips endpoint, check current useFips value is consistent with deviceConfig fipsMode value,
         // refresh client if they are inconsistent
-        if (useFips != Coerce.toBoolean(deviceConfiguration.getFipsMode())) {
+        if (useFips.compareAndSet(Coerce.toBoolean(deviceConfiguration.getFipsMode()), useFips.get())) {
             refreshCache = true;
-            useFips = Coerce.toBoolean(deviceConfiguration.getFipsMode());
         }
 
         if (refreshCache) {

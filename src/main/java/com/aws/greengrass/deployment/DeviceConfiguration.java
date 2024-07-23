@@ -44,8 +44,6 @@ import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -195,7 +193,6 @@ public class DeviceConfiguration {
         getRootCAFilePath().withValue(rootCaFilePath);
         getAWSRegion().withValue(awsRegion);
         getIotRoleAlias().withValue(tesRoleAliasName);
-        handleExistingSystemProperty();
         validate();
     }
 
@@ -366,20 +363,8 @@ public class DeviceConfiguration {
             config.lookup(SETENV_CONFIG_NAMESPACE, SdkSystemSetting.AWS_REGION.environmentVariable())
                     .withValue(region);
 
-            // Get the current FIPS mode for the AWS SDK. Default will be false (no FIPS).
-            String useFipsMode = Boolean.toString(Coerce.toBoolean(getFipsMode()));
-            if (Coerce.toBoolean(getFipsMode()) && !rootCA3Downloaded.get()) {
-                downloadRootCA3();
-            }
-            // Set the FIPS property so our SDK clients will use this FIPS mode by default.
-            // This won't change any client that exists already.
-            System.setProperty(SdkSystemSetting.AWS_USE_FIPS_ENDPOINT.property(), useFipsMode);
-            // Pass down the FIPS to components.
-            config.lookup(SETENV_CONFIG_NAMESPACE, SdkSystemSetting.AWS_USE_FIPS_ENDPOINT.environmentVariable())
-                    .withValue(useFipsMode);
-            // Read by stream manager
-            config.lookup(SETENV_CONFIG_NAMESPACE, "AWS_GG_FIPS_MODE").withValue(useFipsMode);
-
+            //subscribe to fips mode topic and set system property
+            getFipsMode().subscribe((why, newv) -> handleFipsMode());
             return region;
         };
     }
@@ -805,27 +790,26 @@ public class DeviceConfiguration {
         }
         //handle fips mode
         String useFipsMode = System.getProperty(SdkSystemSetting.AWS_USE_FIPS_ENDPOINT.property());
-        if (useFipsMode != null && Coerce.toBoolean(useFipsMode)) {
+        if (Coerce.toBoolean(useFipsMode)) {
             getFipsMode().withValue(useFipsMode);
         }
     }
 
-    private void downloadRootCA3() {
+    private void handleFipsMode() {
+        // Get the current FIPS mode for the AWS SDK. Default will be false (no FIPS).
+        String useFipsMode = Boolean.toString(Coerce.toBoolean(getFipsMode()));
         //Download CA3 to support iotDataEndpoint
-        String rootCAPath = Coerce.toString(getRootCAFilePath());
-        if (rootCAPath == null || rootCAPath.isEmpty()) {
-            return;
+        if (Coerce.toBoolean(getFipsMode()) && !rootCA3Downloaded.get()) {
+            rootCA3Downloaded.set(RootCAUtils.downloadRootCAsWithPath(Coerce.toString(getRootCAFilePath()),
+                    RootCAUtils.AMAZON_ROOT_CA_3_URL));
         }
-        Path caFilePath = Paths.get(rootCAPath);
-        if (!Files.exists(caFilePath)) {
-            return;
-        }
-        try {
-            RootCAUtils.downloadRootCAToFile(caFilePath.toFile(), RootCAUtils.AMAZON_ROOT_CA_3_URL);
-        } catch (IOException e) {
-            logger.atError().log("Failed to download CA from path - {}", caFilePath.toAbsolutePath(), e);
-            return;
-        }
-        rootCA3Downloaded.set(true);
+        // Set the FIPS property so our SDK clients will use this FIPS mode by default.
+        // This won't change any client that exists already.
+        System.setProperty(SdkSystemSetting.AWS_USE_FIPS_ENDPOINT.property(), useFipsMode);
+        // Pass down the FIPS to components.
+        config.lookup(SETENV_CONFIG_NAMESPACE, SdkSystemSetting.AWS_USE_FIPS_ENDPOINT.environmentVariable())
+                .withValue(useFipsMode);
+        // Read by stream manager
+        config.lookup(SETENV_CONFIG_NAMESPACE, "AWS_GG_FIPS_MODE").withValue(useFipsMode);
     }
 }

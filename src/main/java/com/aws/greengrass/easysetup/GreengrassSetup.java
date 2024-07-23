@@ -39,6 +39,7 @@ import java.util.UUID;
 
 import static com.aws.greengrass.componentmanager.KernelConfigResolver.CONFIGURATION_CONFIG_KEY;
 import static com.aws.greengrass.deployment.DeviceConfiguration.DEFAULT_NUCLEUS_COMPONENT_NAME;
+import static com.aws.greengrass.deployment.DeviceConfiguration.DEVICE_PARAM_FIPS_MODE;
 import static com.aws.greengrass.deployment.DeviceConfiguration.DEVICE_PARAM_IOT_CRED_ENDPOINT;
 import static com.aws.greengrass.deployment.DeviceConfiguration.DEVICE_PARAM_IOT_DATA_ENDPOINT;
 import static com.aws.greengrass.easysetup.DeviceProvisioningHelper.ThingInfo;
@@ -517,10 +518,15 @@ public class GreengrassSetup {
     void provision(Kernel kernel) throws IOException, DeviceConfigurationException {
         outStream.printf("Provisioning AWS IoT resources for the device with IoT Thing Name: [%s]...%n", thingName);
         // handle endpoints provided by external config
-        String iotDataEndpoint = Coerce.toString(kernel.getConfig().find(SERVICES_NAMESPACE_TOPIC,
-                DEFAULT_NUCLEUS_COMPONENT_NAME, CONFIGURATION_CONFIG_KEY, DEVICE_PARAM_IOT_DATA_ENDPOINT));
-        String iotCredEndpoint = Coerce.toString(kernel.getConfig().find(SERVICES_NAMESPACE_TOPIC,
-                DEFAULT_NUCLEUS_COMPONENT_NAME, CONFIGURATION_CONFIG_KEY, DEVICE_PARAM_IOT_CRED_ENDPOINT));
+        String iotDataEndpoint = "";
+        String iotCredEndpoint = "";
+        if (Coerce.toBoolean(kernel.getConfig().find(SERVICES_NAMESPACE_TOPIC,
+                DEFAULT_NUCLEUS_COMPONENT_NAME, CONFIGURATION_CONFIG_KEY, DEVICE_PARAM_FIPS_MODE))) {
+            iotDataEndpoint  = Coerce.toString(kernel.getConfig().find(SERVICES_NAMESPACE_TOPIC,
+                    DEFAULT_NUCLEUS_COMPONENT_NAME, CONFIGURATION_CONFIG_KEY, DEVICE_PARAM_IOT_DATA_ENDPOINT));
+            iotCredEndpoint = Coerce.toString(kernel.getConfig().find(SERVICES_NAMESPACE_TOPIC,
+                    DEFAULT_NUCLEUS_COMPONENT_NAME, CONFIGURATION_CONFIG_KEY, DEVICE_PARAM_IOT_CRED_ENDPOINT));
+        }
 
         final ThingInfo thingInfo = deviceProvisioningHelper.createThing(deviceProvisioningHelper.getIotClient(),
                 thingPolicyName, thingName, iotDataEndpoint, iotCredEndpoint);

@@ -204,11 +204,11 @@ public class DeviceProvisioningHelper {
         }
 
         // handle endpoints
-        if (iotDataEndpoint == null || iotDataEndpoint.isEmpty()) {
+        if (Utils.isEmpty(iotDataEndpoint)) {
             iotDataEndpoint = client.describeEndpoint(DescribeEndpointRequest.builder()
                     .endpointType("iot:Data-ATS").build()).endpointAddress();
         }
-        if (iotCredEndpoint == null || iotCredEndpoint.isEmpty()) {
+        if (Utils.isEmpty(iotCredEndpoint)) {
             iotCredEndpoint = client.describeEndpoint(DescribeEndpointRequest.builder()
                     .endpointType("iot:CredentialProvider").build()).endpointAddress();
         }
